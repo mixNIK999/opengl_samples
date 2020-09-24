@@ -35,7 +35,8 @@ static void glfw_error_callback(int error, const char *description)
 }
 
 
-void step(int step_left, float angle, int l, int r, std::vector<glm::vec3>& vertexes, std::vector<unsigned int>& indexes) {
+void step(int step_left, float angle, int l, int r,
+          std::vector<glm::vec3>& vertexes, std::vector<unsigned int>& indexes, std::vector<int>& levels) {
    if (step_left <= 0) {
       return;
    }
@@ -48,6 +49,7 @@ void step(int step_left, float angle, int l, int r, std::vector<glm::vec3>& vert
    auto top_lv = lv + r_edge;
    int top_lv_index = vertexes.size();
    vertexes.push_back(top_lv);
+   levels.push_back(step_left);
    indexes.push_back(l);
    indexes.push_back(r);
    indexes.push_back(top_lv_index);
@@ -55,6 +57,7 @@ void step(int step_left, float angle, int l, int r, std::vector<glm::vec3>& vert
    auto top_rv = rv + r_edge;
    int top_rv_index = vertexes.size();
    vertexes.push_back(top_rv);
+   levels.push_back(step_left);
    indexes.push_back(r);
    indexes.push_back(top_lv_index);
    indexes.push_back(top_rv_index);
@@ -63,12 +66,13 @@ void step(int step_left, float angle, int l, int r, std::vector<glm::vec3>& vert
    auto new_v = glm::vec3(leg) + top_lv;
    int new_v_index = vertexes.size();
    vertexes.push_back(new_v);
+   levels.push_back(step_left);
    indexes.push_back(top_lv_index);
    indexes.push_back(top_rv_index);
    indexes.push_back(new_v_index);
 
-   step(step_left - 1, angle, top_lv_index, new_v_index, vertexes, indexes);
-   step(step_left - 1, angle, new_v_index, top_rv_index, vertexes, indexes);
+   step(step_left - 1, angle, top_lv_index, new_v_index, vertexes, indexes, levels);
+   step(step_left - 1, angle, new_v_index, top_rv_index, vertexes, indexes, levels);
 
 }
 void fill_buffers(GLuint &vbo, GLuint &vao, GLuint &ebo, std::vector<float> &vertexes, std::vector<unsigned int> &indexes)
@@ -148,6 +152,26 @@ void load_image(GLuint & texture)
    stbi_image_free(image);
 }
 
+void load_1d_texture(GLuint & texture)
+{
+   int width, height, channels;
+   stbi_set_flip_vertically_on_load(true);
+   unsigned char *image = stbi_load("grad3.png",
+                                    &width,
+                                    &height,
+                                    &channels,
+                                    STBI_rgb_alpha);
+
+   std::cout << width << " " <<  height << " " << channels;
+
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_1D, texture);
+   glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, width, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+   glGenerateMipmap(GL_TEXTURE_1D);
+
+   stbi_image_free(image);
+}
+
 int main(int, char **)
 {
    // Use GLFW to create a simple window
@@ -178,8 +202,8 @@ int main(int, char **)
    }
 
    GLuint texture;
-   load_image(texture);
-
+//   load_image(texture);
+   load_1d_texture(texture);
    // create our geometries
    GLuint vbo, vao, ebo;
 //   fill_buffers_old(vbo, vao, ebo);
@@ -226,11 +250,11 @@ int main(int, char **)
 //      ImGui::SliderFloat2("position", translation, -1.0, 1.0);
 //      static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
 //      ImGui::ColorEdit3("color", color);
-      static float scale = 0.5;
+      static float scale = 0.2;
       ImGui::SliderFloat("scale", &scale, 0, 2);
-      static int iteration = 3;
-      ImGui::SliderInt("iter", &iteration, 1, 10);
-      static float angle = glm::pi<float>() / 5;
+      static int iteration = 5;
+      ImGui::SliderInt("iter", &iteration, 1, 20);
+      static float angle = glm::pi<float>() / 4;
       ImGui::SliderFloat("angle", &angle, 0.1, glm::pi<float>() / 2 - 0.1);
       ImGui::End();
 
@@ -238,21 +262,23 @@ int main(int, char **)
       auto start_l = glm::vec3(-1, -1, 0);
       auto start_r = glm::vec3(1, -1, 0);
       std::vector<glm::vec3> vertexes = {start_l, start_r};
+      std::vector<int> levels = {iteration + 1, iteration + 1};
       std::vector<unsigned int> indexes;
-      step(iteration, angle, 0, 1, vertexes, indexes);
+      step(iteration, angle, 0, 1, vertexes, indexes, levels);
 
       // pushing tree to buffer
       std::vector<float> raw_vertex_buffer;
 //      printf("Vertex: ");
-      for (auto point : vertexes) {
+      for (int i = 0; i < vertexes.size(); i++) {
+         auto point = vertexes[i];
 //         printf("(%f, %f), ", point.x, point.y);
          // position
          raw_vertex_buffer.push_back(point.x);
          raw_vertex_buffer.push_back(point.y);
          raw_vertex_buffer.push_back(0);
          // color
+         raw_vertex_buffer.push_back( 1.0 * levels[i] / (iteration + 1));
          raw_vertex_buffer.push_back(0);
-         raw_vertex_buffer.push_back(1);
          raw_vertex_buffer.push_back(0);
       }
 //      printf(";\n");
@@ -286,14 +312,14 @@ int main(int, char **)
       // Bind triangle shader
       triangle_shader.use();
       glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, texture);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glBindTexture(GL_TEXTURE_1D, texture);
+      glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+      glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       // Bind vertex array = buffers + indices
       glBindVertexArray(vao);
       // Execute draw call
       glDrawElements(GL_TRIANGLES, indexes.size(), GL_UNSIGNED_INT, 0);
-      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindTexture(GL_TEXTURE_1D, 0);
       glBindVertexArray(0);
 
       // Generate gui render commands
