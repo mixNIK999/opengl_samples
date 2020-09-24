@@ -97,41 +97,6 @@ void fill_buffers(GLuint &vbo, GLuint &vao, GLuint &ebo, std::vector<float> &ver
    glBindVertexArray(0);
 }
 
-void fill_buffers_old(GLuint &vbo, GLuint &vao, GLuint &ebo)
-{
-   // create the triangle
-   float triangle_vertices[] = {
-       -1, -1, 0,	// position vertex 1
-       0, 1, 0.0f,	 // color vertex 1
-
-       1, -1, 0.0f,  // position vertex 1
-       0, 1, 0.0f,	 // color vertex 1
-
-       -1, 1, 0.0f, // position vertex 1
-       0, 1, 0,	 // color vertex 1
-
-       1, 1, 0.0f, // position vertex 1
-       0, 1, 0,	 // color vertex 1
-
-   };
-   unsigned int triangle_indices[] = {
-       0, 1, 2, 1, 2, 3 };
-   glGenVertexArrays(1, &vao);
-   glGenBuffers(1, &vbo);
-   glGenBuffers(1, &ebo);
-   glBindVertexArray(vao);
-   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(triangle_vertices), triangle_vertices, GL_DYNAMIC_DRAW );
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triangle_indices), triangle_indices, GL_DYNAMIC_DRAW );
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-   glEnableVertexAttribArray(0);
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-   glEnableVertexAttribArray(1);
-   glBindBuffer(GL_ARRAY_BUFFER, 0);
-   glBindVertexArray(0);
-}
-
 void load_image(GLuint & texture)
 {
    int width, height, channels;
@@ -162,7 +127,7 @@ void load_1d_texture(GLuint & texture)
                                     &channels,
                                     STBI_rgb_alpha);
 
-   std::cout << width << " " <<  height << " " << channels;
+   std::cout << width << " " <<  height << " " << channels << "\n";
 
    glGenTextures(1, &texture);
    glBindTexture(GL_TEXTURE_1D, texture);
@@ -170,6 +135,55 @@ void load_1d_texture(GLuint & texture)
    glGenerateMipmap(GL_TEXTURE_1D);
 
    stbi_image_free(image);
+}
+
+namespace map_ui {
+
+   glm::mat4 inv = glm::mat4(1);
+   double window_w = 0, window_h = 0;
+   glm::vec3 world_offset;
+   glm::vec3 prev_pos;
+
+   glm::vec3 pixel_to_coord(double x, double y){
+      double nx = x / (window_w  * 0.5f) - 1.0f;
+      double ny = y / (window_h  * 0.5f) - 1.0f;
+      glm::vec4 screen_pos(nx, -ny, 0, 0);
+      return glm::vec3(inv * screen_pos);
+   }
+
+   void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+      if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_RELEASE)) {
+         double xpos, ypos;
+         glfwGetCursorPos(window, &xpos, &ypos);
+         auto new_pos = pixel_to_coord(xpos, ypos);
+//         world_offset = (new_pos - prev_pos);
+         prev_pos = new_pos;
+      }
+   }
+
+
+   void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos) {
+
+      if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+         return;
+      }
+      auto new_pos = pixel_to_coord(xpos, ypos);
+//      std::cout << "prev:" << prev_pos.x << " " << prev_pos.y << "\n";
+//      std::cout << "new:" << new_pos.x << " " << new_pos.y << "\n";
+      world_offset += (new_pos - prev_pos);
+      prev_pos = new_pos;
+   }
+
+    void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+
+      double xpos, ypos;
+       glfwGetCursorPos(window, &xpos, &ypos);
+       auto world_point = pixel_to_coord(xpos, ypos);
+
+       auto new_pos = pixel_to_coord(xpos, ypos);
+       world_offset += (new_pos - prev_pos);
+       prev_pos = new_pos;
+    }
 }
 
 int main(int, char **)
@@ -193,6 +207,9 @@ int main(int, char **)
       return 1;
    glfwMakeContextCurrent(window);
    glfwSwapInterval(1); // Enable vsync
+   //set callbacks
+   glfwSetMouseButtonCallback(window, map_ui::mouse_button_callback);
+   glfwSetCursorPosCallback(window, map_ui::mouse_cursor_callback);
 
    // Initialize GLEW, i.e. fill all possible function pointers for current OpenGL context
    if (glewInit() != GLEW_OK)
@@ -228,6 +245,9 @@ int main(int, char **)
       // Get windows size
       int display_w, display_h;
       glfwGetFramebufferSize(window, &display_w, &display_h);
+      glm::vec3 display_size(display_w, display_h, 1);
+      map_ui::window_w = display_w;
+      map_ui::window_h = display_h;
 
       // Set viewport to fill the whole window area
       glViewport(0, 0, display_w, display_h);
@@ -250,11 +270,11 @@ int main(int, char **)
 //      ImGui::SliderFloat2("position", translation, -1.0, 1.0);
 //      static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
 //      ImGui::ColorEdit3("color", color);
-      static float scale = 0.2;
+      static float scale = 0.5;
       ImGui::SliderFloat("scale", &scale, 0, 2);
-      static int iteration = 5;
+      static int iteration = 7;
       ImGui::SliderInt("iter", &iteration, 1, 20);
-      static float angle = glm::pi<float>() / 4;
+      static float angle = 1;
       ImGui::SliderFloat("angle", &angle, 0.1, glm::pi<float>() / 2 - 0.1);
       ImGui::End();
 
@@ -262,9 +282,9 @@ int main(int, char **)
       auto start_l = glm::vec3(-1, -1, 0);
       auto start_r = glm::vec3(1, -1, 0);
       std::vector<glm::vec3> vertexes = {start_l, start_r};
-      std::vector<int> levels = {iteration + 1, iteration + 1};
+      std::vector<int> levels = {iteration, iteration};
       std::vector<unsigned int> indexes;
-      step(iteration, angle, 0, 1, vertexes, indexes, levels);
+      step(iteration - 1, angle, 0, 1, vertexes, indexes, levels);
 
       // pushing tree to buffer
       std::vector<float> raw_vertex_buffer;
@@ -277,7 +297,7 @@ int main(int, char **)
          raw_vertex_buffer.push_back(point.y);
          raw_vertex_buffer.push_back(0);
          // color
-         raw_vertex_buffer.push_back( 1.0 * levels[i] / (iteration + 1));
+         raw_vertex_buffer.push_back( 1.0 * levels[i] / iteration);
          raw_vertex_buffer.push_back(0);
          raw_vertex_buffer.push_back(0);
       }
@@ -298,11 +318,13 @@ int main(int, char **)
       triangle_shader.set_uniform("u_time", time_from_start);
 //      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
 
-
-      auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(scale, scale, scale)) ;
-      auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-      auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
+//      std::cout << map_ui::world_offset.x << "\n";
+      auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(scale, scale, scale)) * glm::translate(map_ui::world_offset) ;
+      auto view = glm::lookAt<float>( glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+      auto projection = glm::perspective<float>(glm::radians(90.0), float(display_w) / display_h, 0.1, 100);
       auto mvp = projection * view * model;
+      map_ui::inv = glm::inverse(projection * view * model);
+
       //glm::mat4 identity(1.0); 
       //mvp = identity;
       triangle_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
