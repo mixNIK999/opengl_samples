@@ -34,32 +34,92 @@ static void glfw_error_callback(int error, const char *description)
    std::cerr << fmt::format("Glfw Error {}: {}\n", error, description);
 }
 
-void create_triangle(GLuint &vbo, GLuint &vao, GLuint &ebo)
+
+void step(int step_left, float angle, int l, int r, std::vector<glm::vec3>& vertexes, std::vector<unsigned int>& indexes) {
+   if (step_left <= 0) {
+      return;
+   }
+   auto lv = vertexes[l];
+   auto rv = vertexes[r];
+
+   auto edge = rv - lv;
+   auto r_edge = glm::vec3(-edge.y, edge.x, 0);
+
+   auto top_lv = lv + r_edge;
+   int top_lv_index = vertexes.size();
+   vertexes.push_back(top_lv);
+   indexes.push_back(l);
+   indexes.push_back(r);
+   indexes.push_back(top_lv_index);
+
+   auto top_rv = rv + r_edge;
+   int top_rv_index = vertexes.size();
+   vertexes.push_back(top_rv);
+   indexes.push_back(r);
+   indexes.push_back(top_lv_index);
+   indexes.push_back(top_rv_index);
+
+   auto leg = glm::rotate(angle, glm::vec3(0, 0, 1)) * glm::vec4((top_rv - top_lv) * glm::cos(angle), 0);
+   auto new_v = glm::vec3(leg) + top_lv;
+   int new_v_index = vertexes.size();
+   vertexes.push_back(new_v);
+   indexes.push_back(top_lv_index);
+   indexes.push_back(top_rv_index);
+   indexes.push_back(new_v_index);
+
+   step(step_left - 1, angle, top_lv_index, new_v_index, vertexes, indexes);
+   step(step_left - 1, angle, new_v_index, top_rv_index, vertexes, indexes);
+
+}
+void fill_buffers(GLuint &vbo, GLuint &vao, GLuint &ebo, std::vector<float> &vertexes, std::vector<unsigned int> &indexes)
+{
+
+   glGenVertexArrays(1, &vao);
+   glGenBuffers(1, &vbo);
+   glGenBuffers(1, &ebo);
+
+   glBindVertexArray(vao);
+   glBindBuffer(GL_ARRAY_BUFFER, vbo);
+   glBufferData(GL_ARRAY_BUFFER, vertexes.size() * sizeof(float), &vertexes[0], GL_STATIC_DRAW);
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexes.size() * sizeof(unsigned int), &indexes[0], GL_STATIC_DRAW);
+
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+   glEnableVertexAttribArray(0);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+   glEnableVertexAttribArray(1);
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
+   glBindVertexArray(0);
+}
+
+void fill_buffers_old(GLuint &vbo, GLuint &vao, GLuint &ebo)
 {
    // create the triangle
    float triangle_vertices[] = {
-       -1, 1, 0,	// position vertex 1
+       -1, -1, 0,	// position vertex 1
        0, 1, 0.0f,	 // color vertex 1
 
-       -1, -1, 0.0f,  // position vertex 1
-       0, 0, 0.0f,	 // color vertex 1
+       1, -1, 0.0f,  // position vertex 1
+       0, 1, 0.0f,	 // color vertex 1
 
-       1, -1, 0.0f, // position vertex 1
-       1, 0, 0,	 // color vertex 1
+       -1, 1, 0.0f, // position vertex 1
+       0, 1, 0,	 // color vertex 1
 
        1, 1, 0.0f, // position vertex 1
-       1, 1, 0,	 // color vertex 1
+       0, 1, 0,	 // color vertex 1
+
    };
    unsigned int triangle_indices[] = {
-       0, 1, 2, 0, 3, 2 };
+       0, 1, 2, 1, 2, 3 };
    glGenVertexArrays(1, &vao);
    glGenBuffers(1, &vbo);
    glGenBuffers(1, &ebo);
    glBindVertexArray(vao);
    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(triangle_vertices), triangle_vertices, GL_STATIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(triangle_vertices), triangle_vertices, GL_DYNAMIC_DRAW );
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triangle_indices), triangle_indices, GL_STATIC_DRAW);
+   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triangle_indices), triangle_indices, GL_DYNAMIC_DRAW );
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
    glEnableVertexAttribArray(0);
    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
@@ -122,7 +182,7 @@ int main(int, char **)
 
    // create our geometries
    GLuint vbo, vao, ebo;
-   create_triangle(vbo, vao, ebo);
+//   fill_buffers_old(vbo, vao, ebo);
 
    // init shader
    shader_t triangle_shader("simple-shader.vs", "simple-shader.fs");
@@ -163,20 +223,57 @@ int main(int, char **)
       static float rotation = 0.0;
       ImGui::SliderFloat("rotation", &rotation, 0, 2 * glm::pi<float>());
       static float translation[] = { 0.0, 0.0 };
-      ImGui::SliderFloat2("position", translation, -1.0, 1.0);
-      static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
-      ImGui::ColorEdit3("color", color);
+//      ImGui::SliderFloat2("position", translation, -1.0, 1.0);
+//      static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
+//      ImGui::ColorEdit3("color", color);
+      static float scale = 0.5;
+      ImGui::SliderFloat("scale", &scale, 0, 2);
+      static int iteration = 3;
+      ImGui::SliderInt("iter", &iteration, 1, 10);
+      static float angle = glm::pi<float>() / 5;
+      ImGui::SliderFloat("angle", &angle, 0.1, glm::pi<float>() / 2 - 0.1);
       ImGui::End();
+
+      //Creating tree
+      auto start_l = glm::vec3(-1, -1, 0);
+      auto start_r = glm::vec3(1, -1, 0);
+      std::vector<glm::vec3> vertexes = {start_l, start_r};
+      std::vector<unsigned int> indexes;
+      step(iteration, angle, 0, 1, vertexes, indexes);
+
+      // pushing tree to buffer
+      std::vector<float> raw_vertex_buffer;
+//      printf("Vertex: ");
+      for (auto point : vertexes) {
+//         printf("(%f, %f), ", point.x, point.y);
+         // position
+         raw_vertex_buffer.push_back(point.x);
+         raw_vertex_buffer.push_back(point.y);
+         raw_vertex_buffer.push_back(0);
+         // color
+         raw_vertex_buffer.push_back(0);
+         raw_vertex_buffer.push_back(1);
+         raw_vertex_buffer.push_back(0);
+      }
+//      printf(";\n");
+
+//      printf("Indexes(%llu): ", indexes.size());
+//      for (auto i : indexes) {
+//         printf("%u, ", i);
+//      }
+//      printf(";\n");
+      fill_buffers(vbo, vao, ebo, raw_vertex_buffer,indexes);
+
 
       // Pass the parameters to the shader as uniforms
       triangle_shader.set_uniform("u_rotation", rotation);
       triangle_shader.set_uniform("u_translation", translation[0], translation[1]);
       float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
       triangle_shader.set_uniform("u_time", time_from_start);
-      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
+//      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
 
 
-      auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(2, 2, 2));
+      auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(scale, scale, scale)) ;
       auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
       auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
       auto mvp = projection * view * model;
@@ -195,7 +292,7 @@ int main(int, char **)
       // Bind vertex array = buffers + indices
       glBindVertexArray(vao);
       // Execute draw call
-      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      glDrawElements(GL_TRIANGLES, indexes.size(), GL_UNSIGNED_INT, 0);
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
 
