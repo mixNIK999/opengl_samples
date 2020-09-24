@@ -138,17 +138,23 @@ void load_1d_texture(GLuint & texture)
 }
 
 namespace map_ui {
-
-   glm::mat4 inv = glm::mat4(1);
-   double window_w = 0, window_h = 0;
+   double scale = 0.5;
+   double window_w = 1, window_h = 1;
    glm::vec3 world_offset;
    glm::vec3 prev_pos;
+
+   glm::mat4 calc_mvp() {
+      auto model = glm::scale(glm::vec3(map_ui::scale, map_ui::scale, map_ui::scale)) * glm::translate(world_offset);
+      auto view = glm::lookAt<float>( glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+      auto projection = glm::perspective<float>(glm::radians(90.0), float(window_w) / window_h, 0.1, 100);
+      return projection * view * model;
+   }
 
    glm::vec3 pixel_to_coord(double x, double y){
       double nx = x / (window_w  * 0.5f) - 1.0f;
       double ny = y / (window_h  * 0.5f) - 1.0f;
       glm::vec4 screen_pos(nx, -ny, 0, 0);
-      return glm::vec3(inv * screen_pos);
+      return glm::vec3(glm::inverse(calc_mvp()) * screen_pos);
    }
 
    void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -174,16 +180,14 @@ namespace map_ui {
       prev_pos = new_pos;
    }
 
-    void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-
+   void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
       double xpos, ypos;
-       glfwGetCursorPos(window, &xpos, &ypos);
-       auto world_point = pixel_to_coord(xpos, ypos);
-
-       auto new_pos = pixel_to_coord(xpos, ypos);
-       world_offset += (new_pos - prev_pos);
-       prev_pos = new_pos;
-    }
+      glfwGetCursorPos(window, &xpos, &ypos);
+      auto prev_world_point = pixel_to_coord(xpos, ypos);
+      scale += yoffset / 10;
+      auto new_world_point = pixel_to_coord(xpos, ypos);
+      world_offset += (new_world_point - prev_world_point);
+   }
 }
 
 int main(int, char **)
@@ -210,6 +214,7 @@ int main(int, char **)
    //set callbacks
    glfwSetMouseButtonCallback(window, map_ui::mouse_button_callback);
    glfwSetCursorPosCallback(window, map_ui::mouse_cursor_callback);
+   glfwSetScrollCallback(window, map_ui::mouse_scroll_callback);
 
    // Initialize GLEW, i.e. fill all possible function pointers for current OpenGL context
    if (glewInit() != GLEW_OK)
@@ -264,14 +269,6 @@ int main(int, char **)
 
       // GUI
       ImGui::Begin("Triangle Position/Color");
-      static float rotation = 0.0;
-      ImGui::SliderFloat("rotation", &rotation, 0, 2 * glm::pi<float>());
-      static float translation[] = { 0.0, 0.0 };
-//      ImGui::SliderFloat2("position", translation, -1.0, 1.0);
-//      static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
-//      ImGui::ColorEdit3("color", color);
-      static float scale = 0.5;
-      ImGui::SliderFloat("scale", &scale, 0, 2);
       static int iteration = 7;
       ImGui::SliderInt("iter", &iteration, 1, 20);
       static float angle = 1;
@@ -288,10 +285,8 @@ int main(int, char **)
 
       // pushing tree to buffer
       std::vector<float> raw_vertex_buffer;
-//      printf("Vertex: ");
       for (int i = 0; i < vertexes.size(); i++) {
          auto point = vertexes[i];
-//         printf("(%f, %f), ", point.x, point.y);
          // position
          raw_vertex_buffer.push_back(point.x);
          raw_vertex_buffer.push_back(point.y);
@@ -301,32 +296,11 @@ int main(int, char **)
          raw_vertex_buffer.push_back(0);
          raw_vertex_buffer.push_back(0);
       }
-//      printf(";\n");
 
-//      printf("Indexes(%llu): ", indexes.size());
-//      for (auto i : indexes) {
-//         printf("%u, ", i);
-//      }
-//      printf(";\n");
       fill_buffers(vbo, vao, ebo, raw_vertex_buffer,indexes);
 
 
-      // Pass the parameters to the shader as uniforms
-      triangle_shader.set_uniform("u_rotation", rotation);
-      triangle_shader.set_uniform("u_translation", translation[0], translation[1]);
-      float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
-      triangle_shader.set_uniform("u_time", time_from_start);
-//      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
-
-//      std::cout << map_ui::world_offset.x << "\n";
-      auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(scale, scale, scale)) * glm::translate(map_ui::world_offset) ;
-      auto view = glm::lookAt<float>( glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-      auto projection = glm::perspective<float>(glm::radians(90.0), float(display_w) / display_h, 0.1, 100);
-      auto mvp = projection * view * model;
-      map_ui::inv = glm::inverse(projection * view * model);
-
-      //glm::mat4 identity(1.0); 
-      //mvp = identity;
+      auto mvp = map_ui::calc_mvp();
       triangle_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
       triangle_shader.set_uniform("u_tex", int(0));
 
