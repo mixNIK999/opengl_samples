@@ -241,7 +241,11 @@ int main(int, char **)
    ImGui_ImplOpenGL3_Init(glsl_version);
    ImGui::StyleColorsDark();
 
-   auto const start_time = std::chrono::steady_clock::now();
+   static int iteration = 7;
+   static float angle = 1;
+   int prev_iteration = -1;
+   float prev_angle = -1;
+   std::vector<unsigned int> indexes;
 
    while (!glfwWindowShouldClose(window))
    {
@@ -269,35 +273,37 @@ int main(int, char **)
 
       // GUI
       ImGui::Begin("Triangle Position/Color");
-      static int iteration = 7;
       ImGui::SliderInt("iter", &iteration, 1, 20);
-      static float angle = 1;
       ImGui::SliderFloat("angle", &angle, 0.1, glm::pi<float>() / 2 - 0.1);
       ImGui::End();
 
       //Creating tree
-      auto start_l = glm::vec3(-1, -1, 0);
-      auto start_r = glm::vec3(1, -1, 0);
-      std::vector<glm::vec3> vertexes = {start_l, start_r};
-      std::vector<int> levels = {iteration, iteration};
-      std::vector<unsigned int> indexes;
-      step(iteration - 1, angle, 0, 1, vertexes, indexes, levels);
+      if (prev_angle != angle || prev_iteration != iteration) {
+         indexes.clear();
+         auto start_l = glm::vec3(-1, -1, 0);
+         auto start_r = glm::vec3(1, -1, 0);
+         std::vector<glm::vec3> vertexes = {start_l, start_r};
+         std::vector<int> levels = {iteration, iteration};
+         step(iteration - 1, angle, 0, 1, vertexes, indexes, levels);
 
-      // pushing tree to buffer
-      std::vector<float> raw_vertex_buffer;
-      for (int i = 0; i < vertexes.size(); i++) {
-         auto point = vertexes[i];
-         // position
-         raw_vertex_buffer.push_back(point.x);
-         raw_vertex_buffer.push_back(point.y);
-         raw_vertex_buffer.push_back(0);
-         // color
-         raw_vertex_buffer.push_back( 1.0 * levels[i] / iteration);
-         raw_vertex_buffer.push_back(0);
-         raw_vertex_buffer.push_back(0);
+         // pushing tree to buffer
+         std::vector<float> raw_vertex_buffer;
+         for (int i = 0; i < vertexes.size(); i++) {
+            auto point = vertexes[i];
+            // position
+            raw_vertex_buffer.push_back(point.x);
+            raw_vertex_buffer.push_back(point.y);
+            raw_vertex_buffer.push_back(0);
+            // color
+            raw_vertex_buffer.push_back(1.0 * levels[i] / iteration);
+            raw_vertex_buffer.push_back(0);
+            raw_vertex_buffer.push_back(0);
+         }
+
+         fill_buffers(vbo, vao, ebo, raw_vertex_buffer, indexes);
+         prev_iteration = iteration;
+         prev_angle = angle;
       }
-
-      fill_buffers(vbo, vao, ebo, raw_vertex_buffer,indexes);
 
 
       auto mvp = map_ui::calc_mvp();
