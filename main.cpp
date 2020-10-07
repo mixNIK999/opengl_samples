@@ -117,6 +117,8 @@ int main(int, char **)
       return 1;
    }
 
+   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
    GLuint texture;
    load_image(texture);
 
@@ -172,8 +174,6 @@ int main(int, char **)
       triangle_shader.set_uniform("u_rotation", rotation);
       triangle_shader.set_uniform("u_translation", translation[0], translation[1]);
       float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
-      triangle_shader.set_uniform("u_time", time_from_start);
-      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
 
 
       auto model = glm::rotate(glm::mat4(1), glm::radians(rotation * 60), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(2, 2, 2));
@@ -182,12 +182,15 @@ int main(int, char **)
       auto mvp = projection * view * model;
       //glm::mat4 identity(1.0); 
       //mvp = identity;
-      triangle_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-      triangle_shader.set_uniform("u_tex", int(0));
 
 
       // Bind triangle shader
       triangle_shader.use();
+      triangle_shader.set_uniform("u_time", time_from_start);
+      triangle_shader.set_uniform("u_color", color[0], color[1], color[2]);
+      triangle_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+      triangle_shader.set_uniform("u_tex", int(0));
+
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, texture);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
