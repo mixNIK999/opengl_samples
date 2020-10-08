@@ -156,6 +156,7 @@ unsigned int loadCubemap(std::vector<std::string> faces)
    unsigned int textureID;
    glGenTextures(1, &textureID);
    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+   stbi_set_flip_vertically_on_load(false);
 
    int width, height, nrChannels;
    for (unsigned int i = 0; i < faces.size(); i++)
@@ -181,6 +182,26 @@ unsigned int loadCubemap(std::vector<std::string> faces)
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
    return textureID;
+}
+
+void load_image(GLuint & texture)
+{
+   int width, height, channels;
+   stbi_set_flip_vertically_on_load(true);
+   unsigned char *image = stbi_load("Banana_BaseColor.png",
+                                    &width,
+                                    &height,
+                                    &channels,
+                                    STBI_rgb_alpha);
+
+   std::cout << width << height << channels;
+
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_2D, texture);
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+   glGenerateMipmap(GL_TEXTURE_2D);
+
+   stbi_image_free(image);
 }
 
 int main(int, char **)
@@ -232,8 +253,9 @@ int main(int, char **)
 //                      "lena.jpg"
 //              };
       unsigned int cubemapTexture = loadCubemap(faces);
-
-      auto bunny = create_model("bunny.obj");
+      GLuint texture;
+      load_image(texture);
+      auto bunny = create_model("Banana.obj");
 //      render_target_t rt(512, 512);
 
       GLuint sky_vbo, sky_vao;
@@ -251,7 +273,6 @@ int main(int, char **)
       ImGui_ImplOpenGL3_Init(glsl_version);
       ImGui::StyleColorsDark();
 
-      auto const start_time = std::chrono::steady_clock::now();
 
       while (!glfwWindowShouldClose(window))
       {
@@ -283,7 +304,7 @@ int main(int, char **)
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.15f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.2f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
                  * glm::rotate(rotation_x, glm::vec3(1, 0, 0))
                  * glm::rotate(rotation_y, glm::vec3(0, 1, 0))
                  * glm::rotate(rotation_z, glm::vec3(0, 0, 1));
@@ -316,7 +337,7 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) * glm::translate(glm::vec3(0, -0.1, 0));
+            auto model = glm::mat4(1) * glm::scale(glm::vec3(0.001, 0.001, 0.001));
 //            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 //            auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
             auto mvp = projection * view * model;
@@ -335,12 +356,12 @@ int main(int, char **)
 
             bunny_shader.use();
             bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-            bunny_shader.set_uniform("u_model", glm::value_ptr(model));
 
-            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(light_rotation * 60));
-
-            bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
-            bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
+            bunny_shader.set_uniform("u_tex", int(0));
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             bunny->draw();
 
             glDisable(GL_DEPTH_TEST);

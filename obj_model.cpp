@@ -44,28 +44,59 @@ obj_model_t::obj_model_t(char const * filename)
    if (!ret)
       throw std::runtime_error(fmt::format("Model load error: {}", err));
 
-   std::vector<glm::vec3> vertices;
+//   std::vector<glm::vec3> vertices;
+//   std::vector<glm::vec3> normals;
+//   std::vector<glm::vec2> tex_coords;
+   std::vector<float> join;
 
    for (auto const & shape : shapes)
    {
-      for (int i = 0; i < shape.mesh.indices.size(); ++i)
+      for (const auto &idx : shape.mesh.indices)
       {
-         const auto vert_x = attrib.vertices[3 * shape.mesh.indices[i].vertex_index];
-         const auto vert_y = attrib.vertices[3 * shape.mesh.indices[i].vertex_index + 1];
-         const auto vert_z = attrib.vertices[3 * shape.mesh.indices[i].vertex_index + 2];
-         vertices.push_back({vert_x, vert_y, vert_z});
+         const auto v_i = idx.vertex_index;
+         const auto vert_x = attrib.vertices[3 * v_i];
+         const auto vert_y = attrib.vertices[3 * v_i + 1];
+         const auto vert_z = attrib.vertices[3 * v_i + 2];
+         join.push_back(vert_x);
+         join.push_back(vert_y);
+         join.push_back(vert_z);
+//         vertices.emplace_back(vert_x, vert_y, vert_z);
+
+         const auto n_i = idx.normal_index;
+         const auto n_x = attrib.normals[3 * n_i];
+         const auto n_y = attrib.normals[3 * n_i + 1];
+         const auto n_z = attrib.normals[3 * n_i + 2];
+         join.push_back(n_x);
+         join.push_back(n_y);
+         join.push_back(n_z);
+//         normals.emplace_back(n_x, n_y, n_z);
+
+         const auto t_i = idx.texcoord_index;
+         const auto tc_x = attrib.texcoords[3 * t_i];
+         const auto tc_y = attrib.texcoords[3 * t_i + 1];
+         join.push_back(tc_x);
+         join.push_back(tc_y);
+//         tex_coords.emplace_back(tc_x, tc_y);
       }
    }
 
-   num_vertices_ = vertices.size();
+//   for (int i = 0; i < vertices.size; i++) {
+//      join
+//   }
+   num_vertices_ = join.size() / 3;
 
    glGenVertexArrays(1, &vao_);
    glGenBuffers(1, &vbo_);
    glBindVertexArray(vao_);
    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * join.size(), &join[0], GL_STATIC_DRAW);
+   int line_size = (3 + 3 + 2) * sizeof(float);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, line_size, (void *)0);
    glEnableVertexAttribArray(0);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, line_size, (void *)(3 * sizeof(float)));
+   glEnableVertexAttribArray(1);
+   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, line_size, (void *)(2 * 3 * sizeof(float)));
+   glEnableVertexAttribArray(2);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
    glBindVertexArray(0);
 }
