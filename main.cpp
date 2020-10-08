@@ -268,22 +268,27 @@ int main(int, char **)
          ImGui::NewFrame();
 
          // GUI
-         //ImGui::Begin("Triangle Position/Color");
-         //static float rotation = 0.0;
-         //ImGui::SliderFloat("rotation", &rotation, 0, 2 * glm::pi<float>());
-         //static float translation[] = { 0.0, 0.0 };
-         //ImGui::SliderFloat2("position", translation, -1.0, 1.0);
-         //static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
-         //ImGui::ColorEdit3("color", color);
-         //ImGui::End();
+         ImGui::Begin("Triangle Position/Color");
+         static float light_rotation = 0.0;
+         ImGui::SliderFloat("light rotation", &light_rotation, 0, 2 * glm::pi<float>());
+         static float rotation_x;
+         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
+         static float rotation_y;
+         ImGui::SliderFloat("rotation y", &rotation_y, 0, 2 * glm::pi<float>());
+         static float rotation_z;
+         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
+         ImGui::End();
 
 //         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.5f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.15f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+                 * glm::rotate(rotation_x, glm::vec3(1, 0, 0))
+                 * glm::rotate(rotation_y, glm::vec3(0, 1, 0))
+                 * glm::rotate(rotation_z, glm::vec3(0, 0, 1));
 //         auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-         auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
+         auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.01, 100);
          // Render sky
          {
             auto model = glm::mat4(1) * glm::scale(glm::vec3(10, 10, 10));
@@ -311,7 +316,7 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) * glm::scale(glm::vec3(5, 5, 5)) * glm::translate(glm::vec3(0, -0.1, 0));
+            auto model = glm::mat4(1) * glm::translate(glm::vec3(0, -0.1, 0));
 //            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 //            auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
             auto mvp = projection * view * model;
@@ -332,7 +337,7 @@ int main(int, char **)
             bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
             bunny_shader.set_uniform("u_model", glm::value_ptr(model));
 
-            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians( 1.0f * 60));
+            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(light_rotation * 60));
 
             bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
             bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
