@@ -288,19 +288,19 @@ int main(int, char **)
                  * glm::rotate(rotation_y, glm::vec3(0, 1, 0))
                  * glm::rotate(rotation_z, glm::vec3(0, 0, 1));
 //         auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-         auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.01, 100);
+         auto projection = glm::perspective<float>(glm::radians(90.0), 1.0 * display_w / display_h, 0.01, 100);
          // Render sky
          {
             auto model = glm::mat4(1) * glm::scale(glm::vec3(10, 10, 10));
-            auto mvp = projection * view * model;
+            auto mvp = projection * glm::mat4(glm::mat3(view));
 
             glViewport(0, 0, display_w, display_h);
 
 //            glClearColor(0.30f, 0.55f, 0.60f, 1.00f);
 //            glClear(GL_COLOR_BUFFER_BIT);
 
-//            glDepthMask(GL_FALSE);
-            glDepthFunc(GL_LEQUAL);
+            glDepthMask(GL_FALSE);
+//            glDepthFunc(GL_LEQUAL);
             skybox_shader.use();
             skybox_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
             skybox_shader.set_uniform("u_tex", int(0));
@@ -310,8 +310,8 @@ int main(int, char **)
             glBindVertexArray(sky_vao);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
-            glDepthFunc(GL_LESS);
-//            glDepthMask(GL_TRUE);
+//            glDepthFunc(GL_LESS);
+            glDepthMask(GL_TRUE);
          }
 
          // Render object
@@ -327,7 +327,7 @@ int main(int, char **)
             glEnable(GL_DEPTH_TEST);
 //            glColorMask(1, 1, 1, 1);
 //            glDepthMask(1);
-//            glDepthFunc(GL_LEQUAL);
+            glDepthFunc(GL_LEQUAL);
 //
 //            glClearColor(0.3, 0.3, 0.3, 1);
 //            glClearDepth(1);
