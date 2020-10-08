@@ -285,20 +285,11 @@ int main(int, char **)
          "posz.jpg",
          "negz.jpg"
       };
-//      std::vector<std::string> faces =
-//              {
-//                      "lena.jpg",
-//                      "lena.jpg",
-//                      "lena.jpg",
-//                      "lena.jpg",
-//                      "lena.jpg",
-//                      "lena.jpg"
-//              };
+
       unsigned int cubemapTexture = loadCubemap(faces);
       GLuint texture;
       load_image(texture);
       auto bunny = create_model("Banana.obj");
-//      render_target_t rt(512, 512);
 
       GLuint sky_vbo, sky_vao;
       create_sky_cube(sky_vbo, sky_vao);
@@ -340,27 +331,22 @@ int main(int, char **)
 //         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
 //         ImGui::End();
 
-//         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
          auto view = glm::lookAt<float>(glm::vec3(0, 0, ui::zoom), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
                  * glm::rotate(ui::angle_x, glm::vec3(1, 0, 0))
                  * glm::rotate(ui::angle_y, glm::vec3(0, 1, 0));
-//         auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+
          auto projection = glm::perspective<float>(glm::radians(90.0), 1.0 * display_w / display_h, 0.01, 100);
          // Render sky
          {
-            auto model = glm::mat4(1) * glm::scale(glm::vec3(10, 10, 10));
             auto mvp = projection * glm::mat4(glm::mat3(view));
 
             glViewport(0, 0, display_w, display_h);
 
-//            glClearColor(0.30f, 0.55f, 0.60f, 1.00f);
-//            glClear(GL_COLOR_BUFFER_BIT);
 
             glDepthMask(GL_FALSE);
-//            glDepthFunc(GL_LEQUAL);
             skybox_shader.use();
             skybox_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
             skybox_shader.set_uniform("u_tex", int(0));
@@ -370,28 +356,16 @@ int main(int, char **)
             glBindVertexArray(sky_vao);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
-//            glDepthFunc(GL_LESS);
             glDepthMask(GL_TRUE);
          }
 
          // Render object
          {
             auto model = glm::mat4(1) * glm::scale(glm::vec3(0.001, 0.001, 0.001));
-//            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-//            auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
             auto mvp = projection * view * model;
 
-
-//            glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo_);
-//            glViewport(0, 0, display_w, display_h);
             glEnable(GL_DEPTH_TEST);
-//            glColorMask(1, 1, 1, 1);
-//            glDepthMask(1);
             glDepthFunc(GL_LEQUAL);
-//
-//            glClearColor(0.3, 0.3, 0.3, 1);
-//            glClearDepth(1);
-//            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             bunny_shader.use();
             bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
@@ -404,7 +378,6 @@ int main(int, char **)
             bunny->draw();
 
             glDisable(GL_DEPTH_TEST);
-//            glBindFramebuffer(GL_FRAMEBUFFER, 0);
          }
 
          // Generate gui render commands

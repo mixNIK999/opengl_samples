@@ -80,9 +80,6 @@ obj_model_t::obj_model_t(char const * filename)
       }
    }
 
-//   for (int i = 0; i < vertices.size; i++) {
-//      join
-//   }
    num_vertices_ = join.size() / 8;
 
    glGenVertexArrays(1, &vao_);
