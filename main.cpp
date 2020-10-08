@@ -204,6 +204,43 @@ void load_image(GLuint & texture)
    stbi_image_free(image);
 }
 
+namespace ui {
+    float angle_x = 0;
+    float angle_y = 0;
+    float zoom = 0.2;
+
+    glm::vec2 prev_pos;
+
+    void update_angles(glm::vec2 d) {
+       angle_x += d.y / 100;
+       angle_y += d.x / 100;
+    }
+
+    void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+       if (button == GLFW_MOUSE_BUTTON_LEFT && (action == GLFW_PRESS || action == GLFW_RELEASE)) {
+          double xpos, ypos;
+          glfwGetCursorPos(window, &xpos, &ypos);
+          prev_pos = {xpos, ypos};
+       }
+    }
+
+
+    void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos) {
+
+       if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+          return;
+       }
+       glm::vec2 new_pos = {xpos, ypos};
+       update_angles(new_pos - prev_pos);
+       prev_pos = new_pos;
+    }
+
+    void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+       zoom -= yoffset / 100;
+    }
+}
+
+
 int main(int, char **)
 {
    try
@@ -230,6 +267,11 @@ int main(int, char **)
 
       if (glewInit() != GLEW_OK)
          throw std::runtime_error("Failed to initialize glew");
+
+      //set callbacks
+      glfwSetMouseButtonCallback(window, ui::mouse_button_callback);
+      glfwSetCursorPosCallback(window, ui::mouse_cursor_callback);
+      glfwSetScrollCallback(window, ui::mouse_scroll_callback);
 
       //load textures
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -289,23 +331,22 @@ int main(int, char **)
          ImGui::NewFrame();
 
          // GUI
-         ImGui::Begin("Triangle Position/Color");
-         static float rotation_x;
-         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
-         static float rotation_y;
-         ImGui::SliderFloat("rotation y", &rotation_y, 0, 2 * glm::pi<float>());
-         static float rotation_z;
-         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
-         ImGui::End();
+//         ImGui::Begin("Triangle Position/Color");
+//         static float rotation_x;
+//         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
+//         static float rotation_y;
+//         ImGui::SliderFloat("rotation y", &rotation_y, 0, 2 * glm::pi<float>());
+//         static float rotation_z;
+//         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
+//         ImGui::End();
 
 //         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.2f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
-                 * glm::rotate(rotation_x, glm::vec3(1, 0, 0))
-                 * glm::rotate(rotation_y, glm::vec3(0, 1, 0))
-                 * glm::rotate(rotation_z, glm::vec3(0, 0, 1));
+         auto view = glm::lookAt<float>(glm::vec3(0, 0, ui::zoom), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+                 * glm::rotate(ui::angle_x, glm::vec3(1, 0, 0))
+                 * glm::rotate(ui::angle_y, glm::vec3(0, 1, 0));
 //         auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
          auto projection = glm::perspective<float>(glm::radians(90.0), 1.0 * display_w / display_h, 0.01, 100);
          // Render sky
