@@ -38,96 +38,150 @@ static void glfw_error_callback(int error, const char *description)
    throw std::runtime_error(fmt::format("Glfw Error {}: {}\n", error, description));
 }
 
-void create_quad(GLuint &vbo, GLuint &vao, GLuint &ebo)
+void create_sky_cube(GLuint &vbo, GLuint &vao)
 {
    // create the triangle
-   const float vertices[] = {
-       -1, 1,
-       0, 1,
+   float vertices[] = {
+           // positions
+           -1.0f,  1.0f, -1.0f,
+           -1.0f, -1.0f, -1.0f,
+           1.0f, -1.0f, -1.0f,
+           1.0f, -1.0f, -1.0f,
+           1.0f,  1.0f, -1.0f,
+           -1.0f,  1.0f, -1.0f,
 
-       -1, -1,
-       0, 0,
+           -1.0f, -1.0f,  1.0f,
+           -1.0f, -1.0f, -1.0f,
+           -1.0f,  1.0f, -1.0f,
+           -1.0f,  1.0f, -1.0f,
+           -1.0f,  1.0f,  1.0f,
+           -1.0f, -1.0f,  1.0f,
 
-       1, -1,
-       1, 0,
+           1.0f, -1.0f, -1.0f,
+           1.0f, -1.0f,  1.0f,
+           1.0f,  1.0f,  1.0f,
+           1.0f,  1.0f,  1.0f,
+           1.0f,  1.0f, -1.0f,
+           1.0f, -1.0f, -1.0f,
 
-       1, 1,
-       1, 1,
+           -1.0f, -1.0f,  1.0f,
+           -1.0f,  1.0f,  1.0f,
+           1.0f,  1.0f,  1.0f,
+           1.0f,  1.0f,  1.0f,
+           1.0f, -1.0f,  1.0f,
+           -1.0f, -1.0f,  1.0f,
+
+           -1.0f,  1.0f, -1.0f,
+           1.0f,  1.0f, -1.0f,
+           1.0f,  1.0f,  1.0f,
+           1.0f,  1.0f,  1.0f,
+           -1.0f,  1.0f,  1.0f,
+           -1.0f,  1.0f, -1.0f,
+
+           -1.0f, -1.0f, -1.0f,
+           -1.0f, -1.0f,  1.0f,
+           1.0f, -1.0f, -1.0f,
+           1.0f, -1.0f, -1.0f,
+           -1.0f, -1.0f,  1.0f,
+           1.0f, -1.0f,  1.0f
    };
-   const unsigned int indices[] = { 0, 1, 2, 0, 2, 3 };
 
    glGenVertexArrays(1, &vao);
    glGenBuffers(1, &vbo);
-   glGenBuffers(1, &ebo);
    glBindVertexArray(vao);
    glBindBuffer(GL_ARRAY_BUFFER, vbo);
    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
-   glEnableVertexAttribArray(1);
-   glBindBuffer(GL_ARRAY_BUFFER, 0);
-   glBindVertexArray(0);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)(0));
 }
+//
+//struct render_target_t
+//{
+//   render_target_t(int res_x, int res_y);
+//   ~render_target_t();
+//
+//   GLuint fbo_;
+//   GLuint color_, depth_;
+//   int width_, height_;
+//};
+//
+//render_target_t::render_target_t(int res_x, int res_y)
+//{
+//   width_ = res_x;
+//   height_ = res_y;
+//
+//   glGenTextures(1, &color_);
+//   glBindTexture(GL_TEXTURE_2D, color_);
+//   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, res_x, res_y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+//
+//   glGenTextures(1, &depth_);
+//   glBindTexture(GL_TEXTURE_2D, depth_);
+//   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, res_x, res_y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
+//
+//   glBindTexture(GL_TEXTURE_2D, 0);
+//
+//   glGenFramebuffers(1, &fbo_);
+//
+//   glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+//
+//   glFramebufferTexture2D(GL_FRAMEBUFFER,
+//      GL_COLOR_ATTACHMENT0,
+//      GL_TEXTURE_2D,
+//      color_,
+//      0);
+//
+//   glFramebufferTexture2D(GL_FRAMEBUFFER,
+//      GL_DEPTH_ATTACHMENT,
+//      GL_TEXTURE_2D,
+//      depth_,
+//      0);
+//
+//   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+//   if (status != GL_FRAMEBUFFER_COMPLETE)
+//      throw std::runtime_error("Framebuffer incomplete");
+//
+//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//
+//}
+//
+//render_target_t::~render_target_t()
+//{
+//   glDeleteFramebuffers(1, &fbo_);
+//   glDeleteTextures(1, &depth_);
+//   glDeleteTextures(1, &color_);
+//}
 
-struct render_target_t
+unsigned int loadCubemap(std::vector<std::string> faces)
 {
-   render_target_t(int res_x, int res_y);
-   ~render_target_t();
+   unsigned int textureID;
+   glGenTextures(1, &textureID);
+   glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
-   GLuint fbo_;
-   GLuint color_, depth_;
-   int width_, height_;
-};
+   int width, height, nrChannels;
+   for (unsigned int i = 0; i < faces.size(); i++)
+   {
+      unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+      if (data)
+      {
+         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                      0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+         );
+         stbi_image_free(data);
+      }
+      else
+      {
+         std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+         stbi_image_free(data);
+      }
+   }
+   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-render_target_t::render_target_t(int res_x, int res_y)
-{
-   width_ = res_x;
-   height_ = res_y;
-
-   glGenTextures(1, &color_);
-   glBindTexture(GL_TEXTURE_2D, color_);
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, res_x, res_y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-
-   glGenTextures(1, &depth_);
-   glBindTexture(GL_TEXTURE_2D, depth_);
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, res_x, res_y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
-
-   glBindTexture(GL_TEXTURE_2D, 0);
-
-   glGenFramebuffers(1, &fbo_);
-
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
-
-   glFramebufferTexture2D(GL_FRAMEBUFFER,
-      GL_COLOR_ATTACHMENT0,
-      GL_TEXTURE_2D,
-      color_,
-      0);
-
-   glFramebufferTexture2D(GL_FRAMEBUFFER,
-      GL_DEPTH_ATTACHMENT,
-      GL_TEXTURE_2D,
-      depth_,
-      0);
-
-   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-   if (status != GL_FRAMEBUFFER_COMPLETE)
-      throw std::runtime_error("Framebuffer incomplete");
-
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+   return textureID;
 }
-
-render_target_t::~render_target_t()
-{
-   glDeleteFramebuffers(1, &fbo_);
-   glDeleteTextures(1, &depth_);
-   glDeleteTextures(1, &color_);
-}
-
 
 int main(int, char **)
 {
@@ -156,16 +210,37 @@ int main(int, char **)
       if (glewInit() != GLEW_OK)
          throw std::runtime_error("Failed to initialize glew");
 
+      //load textures
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      auto bunny = create_model("bunny.obj");
-      render_target_t rt(512, 512);
+//      std::vector<std::string> faces =
+//      {
+//         "right.jpg",
+//         "left.jpg",
+//         "top.jpg",
+//         "bottom.jpg",
+//         "front.jpg",
+//         "back.jpg"
+//      };
+      std::vector<std::string> faces =
+              {
+                      "lena.jpg",
+                      "lena.jpg",
+                      "lena.jpg",
+                      "lena.jpg",
+                      "lena.jpg",
+                      "lena.jpg"
+              };
+      unsigned int cubemapTexture = loadCubemap(faces);
 
-      GLuint vbo, vao, ebo;
-      create_quad(vbo, vao, ebo);
+      auto bunny = create_model("bunny.obj");
+//      render_target_t rt(512, 512);
+
+      GLuint sky_vbo, sky_vao;
+      create_sky_cube(sky_vbo, sky_vao);
 
       // init shader
-      shader_t quad_shader("simple-shader.vs", "simple-shader.fs");
+      shader_t skybox_shader("simple-shader.vs", "simple-shader.fs");
       shader_t bunny_shader("model.vs", "model.fs");
 
       // Setup GUI context
@@ -202,46 +277,12 @@ int main(int, char **)
          //ImGui::ColorEdit3("color", color);
          //ImGui::End();
 
-         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
+//         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
 
-
-         // Render offscreen
+         // Render sky
          {
-            auto model = glm::rotate(glm::mat4(1), glm::radians(time_from_start * 10), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(7, 7, 7));
-            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-            auto projection = glm::perspective<float>(90, float(rt.width_) / rt.height_, 0.1, 100);
-            auto mvp = projection * view * model;
-
-
-            glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo_);
-            glViewport(0, 0, rt.width_, rt.height_);
-            glEnable(GL_DEPTH_TEST);
-            glColorMask(1, 1, 1, 1);
-            glDepthMask(1);
-            glDepthFunc(GL_LEQUAL);
-
-            glClearColor(0.3, 0.3, 0.3, 1);
-            glClearDepth(1);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            bunny_shader.use();
-            bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-            bunny_shader.set_uniform("u_model", glm::value_ptr(model));
-
-            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(time_from_start * 60));
-
-            bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
-            bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
-            bunny->draw();
-
-            glDisable(GL_DEPTH_TEST);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-         }
-
-         // Render main
-         {
-            auto model = glm::rotate<float>(glm::mat4(1), 0.1 * (-1 + 2 * cos(time_from_start) * cos(time_from_start)), glm::vec3(0, 1, 0));// *glm::scale(glm::vec3(7, 7, 7));
-            auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+            auto model = glm::mat4(1) * glm::scale(glm::vec3(10, 10, 10));
+            auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.5f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
             auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
             auto mvp = projection * view * model;
 
@@ -250,19 +291,51 @@ int main(int, char **)
             glClearColor(0.30f, 0.55f, 0.60f, 1.00f);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            quad_shader.use();
-            quad_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-            quad_shader.set_uniform("u_tex", int(0));
+            glDepthMask(GL_FALSE);
+            skybox_shader.use();
+            skybox_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+            skybox_shader.set_uniform("u_tex", int(0));
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, rt.color_);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glBindVertexArray(vao);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            glBindVertexArray(sky_vao);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
+            glDepthMask(GL_FALSE);
          }
+
+         // Render offscreen (todo obj)
+//         {
+//            auto model = glm::rotate(glm::mat4(1), glm::radians(time_from_start * 10), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(7, 7, 7));
+//            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+//            auto projection = glm::perspective<float>(90, float(rt.width_) / rt.height_, 0.1, 100);
+//            auto mvp = projection * view * model;
+//
+//
+//            glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo_);
+//            glViewport(0, 0, rt.width_, rt.height_);
+//            glEnable(GL_DEPTH_TEST);
+//            glColorMask(1, 1, 1, 1);
+//            glDepthMask(1);
+//            glDepthFunc(GL_LEQUAL);
+//
+//            glClearColor(0.3, 0.3, 0.3, 1);
+//            glClearDepth(1);
+//            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//
+//            bunny_shader.use();
+//            bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+//            bunny_shader.set_uniform("u_model", glm::value_ptr(model));
+//
+//            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(time_from_start * 60));
+//
+//            bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
+//            bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
+//            bunny->draw();
+//
+//            glDisable(GL_DEPTH_TEST);
+//            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//         }
 
          // Generate gui render commands
          ImGui::Render();
@@ -273,6 +346,8 @@ int main(int, char **)
          // Swap the backbuffer with the frontbuffer that is used for screen display
          glfwSwapBuffers(window);
       }
+
+
 
       // Cleanup
       ImGui_ImplOpenGL3_Shutdown();

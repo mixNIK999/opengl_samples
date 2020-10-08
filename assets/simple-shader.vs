@@ -1,11 +1,10 @@
 #version 330 core
 
-layout (location = 0) in vec2 in_position;
-layout (location = 1) in vec2 in_st;
+layout (location = 0) in vec3 in_position;
 
 struct vx_output_t
 {
-    vec2 st;
+    vec3 st;
 };
 out vx_output_t v_out;
 
@@ -13,9 +12,9 @@ uniform mat4 u_mvp;
 
 void main()
 {
-    v_out.st = in_st;
+    v_out.st = in_position;
 
-    gl_Position = u_mvp * vec4(in_position.xy, 0.0, 1.0);
+    gl_Position = u_mvp * vec4(in_position, 1.0);
 
     //gl_Position.xyz *= 0;
 

@@ -4,12 +4,12 @@ out vec4 o_frag_color;
 
 struct vx_output_t
 {
-    vec2 st;
+    vec3 st;
 };
 
 in vx_output_t v_out;
 
-uniform sampler2D u_tex;
+uniform samplerCube u_tex;
 
 void main()
 {
