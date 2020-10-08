@@ -278,20 +278,24 @@ int main(int, char **)
          //ImGui::End();
 
 //         float const time_from_start = (float)(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count() / 1000.0);
+         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+         auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.5f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+//         auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+         auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
          // Render sky
          {
             auto model = glm::mat4(1) * glm::scale(glm::vec3(10, 10, 10));
-            auto view = glm::lookAt<float>(glm::vec3(0, 0, -0.5f), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-            auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
             auto mvp = projection * view * model;
 
             glViewport(0, 0, display_w, display_h);
 
-            glClearColor(0.30f, 0.55f, 0.60f, 1.00f);
-            glClear(GL_COLOR_BUFFER_BIT);
+//            glClearColor(0.30f, 0.55f, 0.60f, 1.00f);
+//            glClear(GL_COLOR_BUFFER_BIT);
 
-            glDepthMask(GL_FALSE);
+//            glDepthMask(GL_FALSE);
+            glDepthFunc(GL_LEQUAL);
             skybox_shader.use();
             skybox_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
             skybox_shader.set_uniform("u_tex", int(0));
@@ -301,20 +305,21 @@ int main(int, char **)
             glBindVertexArray(sky_vao);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
-            glDepthMask(GL_FALSE);
+            glDepthFunc(GL_LESS);
+//            glDepthMask(GL_TRUE);
          }
 
-         // Render offscreen (todo obj)
-//         {
-//            auto model = glm::rotate(glm::mat4(1), glm::radians(time_from_start * 10), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(7, 7, 7));
+         // Render object
+         {
+            auto model = glm::mat4(1) * glm::scale(glm::vec3(5, 5, 5)) * glm::translate(glm::vec3(0, -0.1, 0));
 //            auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-//            auto projection = glm::perspective<float>(90, float(rt.width_) / rt.height_, 0.1, 100);
-//            auto mvp = projection * view * model;
-//
-//
+//            auto projection = glm::perspective<float>(90, 1.0 * display_w / display_h, 0.1, 100);
+            auto mvp = projection * view * model;
+
+
 //            glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo_);
-//            glViewport(0, 0, rt.width_, rt.height_);
-//            glEnable(GL_DEPTH_TEST);
+//            glViewport(0, 0, display_w, display_h);
+            glEnable(GL_DEPTH_TEST);
 //            glColorMask(1, 1, 1, 1);
 //            glDepthMask(1);
 //            glDepthFunc(GL_LEQUAL);
@@ -322,20 +327,20 @@ int main(int, char **)
 //            glClearColor(0.3, 0.3, 0.3, 1);
 //            glClearDepth(1);
 //            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//
-//            bunny_shader.use();
-//            bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-//            bunny_shader.set_uniform("u_model", glm::value_ptr(model));
-//
-//            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(time_from_start * 60));
-//
-//            bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
-//            bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
-//            bunny->draw();
-//
-//            glDisable(GL_DEPTH_TEST);
+
+            bunny_shader.use();
+            bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+            bunny_shader.set_uniform("u_model", glm::value_ptr(model));
+
+            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians( 1.0f * 60));
+
+            bunny_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
+            bunny_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
+            bunny->draw();
+
+            glDisable(GL_DEPTH_TEST);
 //            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//         }
+         }
 
          // Generate gui render commands
          ImGui::Render();
