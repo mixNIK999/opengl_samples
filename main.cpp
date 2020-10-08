@@ -213,24 +213,24 @@ int main(int, char **)
       //load textures
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-//      std::vector<std::string> faces =
-//      {
-//         "right.jpg",
-//         "left.jpg",
-//         "top.jpg",
-//         "bottom.jpg",
-//         "front.jpg",
-//         "back.jpg"
-//      };
       std::vector<std::string> faces =
-              {
-                      "lena.jpg",
-                      "lena.jpg",
-                      "lena.jpg",
-                      "lena.jpg",
-                      "lena.jpg",
-                      "lena.jpg"
-              };
+      {
+         "posx.jpg",
+         "negx.jpg",
+         "posy.jpg",
+         "negy.jpg",
+         "posz.jpg",
+         "negz.jpg"
+      };
+//      std::vector<std::string> faces =
+//              {
+//                      "lena.jpg",
+//                      "lena.jpg",
+//                      "lena.jpg",
+//                      "lena.jpg",
+//                      "lena.jpg",
+//                      "lena.jpg"
+//              };
       unsigned int cubemapTexture = loadCubemap(faces);
 
       auto bunny = create_model("bunny.obj");
