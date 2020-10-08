@@ -4,3 +4,4 @@ build
 *.dll
 /.idea/
 imgui.ini
+/cmake-build-debug-visual-studio/
