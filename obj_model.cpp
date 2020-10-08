@@ -72,8 +72,8 @@ obj_model_t::obj_model_t(char const * filename)
 //         normals.emplace_back(n_x, n_y, n_z);
 
          const auto t_i = idx.texcoord_index;
-         const auto tc_x = attrib.texcoords[3 * t_i];
-         const auto tc_y = attrib.texcoords[3 * t_i + 1];
+         const auto tc_x = attrib.texcoords[2 * t_i];
+         const auto tc_y = attrib.texcoords[2 * t_i + 1];
          join.push_back(tc_x);
          join.push_back(tc_y);
 //         tex_coords.emplace_back(tc_x, tc_y);
@@ -83,7 +83,7 @@ obj_model_t::obj_model_t(char const * filename)
 //   for (int i = 0; i < vertices.size; i++) {
 //      join
 //   }
-   num_vertices_ = join.size() / 3;
+   num_vertices_ = join.size() / 8;
 
    glGenVertexArrays(1, &vao_);
    glGenBuffers(1, &vbo_);

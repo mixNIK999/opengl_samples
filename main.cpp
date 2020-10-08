@@ -290,8 +290,6 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static float light_rotation = 0.0;
-         ImGui::SliderFloat("light rotation", &light_rotation, 0, 2 * glm::pi<float>());
          static float rotation_x;
          ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
          static float rotation_y;
