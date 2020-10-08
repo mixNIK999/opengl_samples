@@ -2,4 +2,5 @@ bindings
 build
 *.exe
 *.dll
+/.idea/
 imgui.ini
