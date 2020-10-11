@@ -4,6 +4,7 @@ out vec4 o_frag_color;
 
 struct vx_output_t
 {
+  vec3 wPos;
   vec3 normal;
   vec2 texcoord;
 };

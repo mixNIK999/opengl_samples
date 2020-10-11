@@ -28,6 +28,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include "opengl_shader.h"
 
@@ -289,14 +290,15 @@ int main(int, char **)
       unsigned int cubemapTexture = loadCubemap(faces);
       GLuint texture;
       load_image(texture);
-      auto bunny = create_model("Banana.obj");
+      auto my_object = create_model("backpack.obj");
 
       GLuint sky_vbo, sky_vao;
       create_sky_cube(sky_vbo, sky_vao);
 
       // init shader
       shader_t skybox_shader("simple-shader.vs", "simple-shader.fs");
-      shader_t bunny_shader("model.vs", "model.fs");
+      shader_t model_texture_shader("model.vs", "model.fs");
+      shader_t model_sky_reflection_shader("model.vs", "model_sky_reflection.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -322,14 +324,17 @@ int main(int, char **)
          ImGui::NewFrame();
 
          // GUI
-//         ImGui::Begin("Triangle Position/Color");
+         ImGui::Begin("Triangle Position/Color");
+         static int mode = 1;
+         ImGui::SliderInt("rotation x", &mode, 0, 1);
+
 //         static float rotation_x;
 //         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
 //         static float rotation_y;
 //         ImGui::SliderFloat("rotation y", &rotation_y, 0, 2 * glm::pi<float>());
 //         static float rotation_z;
 //         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
-//         ImGui::End();
+         ImGui::End();
 
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -361,22 +366,37 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) * glm::scale(glm::vec3(0.001, 0.001, 0.001));
-            auto mvp = projection * view * model;
+            auto model = glm::mat4(1) ;//* glm::scale(glm::vec3(0.001, 0.001, 0.001));
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
+            if (mode == 0) {
+               model_texture_shader.use();
+               model_texture_shader.set_uniform("model", glm::value_ptr(model));
+               model_texture_shader.set_uniform("view", glm::value_ptr(view));
+               model_texture_shader.set_uniform("projection", glm::value_ptr(projection));
+               model_texture_shader.set_uniform("u_tex", int(0));
 
-            bunny_shader.use();
-            bunny_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+               glActiveTexture(GL_TEXTURE0);
+               glBindTexture(GL_TEXTURE_2D, texture);
+               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            } else {
 
-            bunny_shader.set_uniform("u_tex", int(0));
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            bunny->draw();
+               auto camera_pos = glm::vec3(inverse(view)[3]);
+//               std::cout << glm::to_string(camera_pos) << "\n";
 
+               model_sky_reflection_shader.use();
+               model_sky_reflection_shader.set_uniform("model", glm::value_ptr(model));
+               model_sky_reflection_shader.set_uniform("view", glm::value_ptr(view));
+               model_sky_reflection_shader.set_uniform("projection", glm::value_ptr(projection));
+               model_sky_reflection_shader.set_uniform("u_tex", int(0));
+               model_sky_reflection_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
+
+               glActiveTexture(GL_TEXTURE0);
+               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            }
+            my_object->draw();
             glDisable(GL_DEPTH_TEST);
          }
 
