@@ -189,7 +189,7 @@ void load_image(GLuint & texture)
 {
    int width, height, channels;
    stbi_set_flip_vertically_on_load(true);
-   unsigned char *image = stbi_load("Banana_BaseColor.png",
+   unsigned char *image = stbi_load("rocket_base_color.png",
                                     &width,
                                     &height,
                                     &channels,
@@ -290,7 +290,7 @@ int main(int, char **)
       unsigned int cubemapTexture = loadCubemap(faces);
       GLuint texture;
       load_image(texture);
-      auto my_object = create_model("backpack.obj");
+      auto my_object = create_model("rocket.obj");
 
       GLuint sky_vbo, sky_vao;
       create_sky_cube(sky_vbo, sky_vao);
@@ -366,7 +366,7 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) ;//* glm::scale(glm::vec3(0.001, 0.001, 0.001));
+            auto model = glm::mat4(1) * glm::scale(glm::vec3(0.001, 0.001, 0.001)) * glm::translate(glm::vec3(0, -100, 0));
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
