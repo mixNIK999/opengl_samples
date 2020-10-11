@@ -19,15 +19,9 @@ void main()
 {
     vec3 normal = normalize(v_out.normal);
 
-//    vec3 vec_x = dFdx(v_out.wPos);
-//    vec3 vec_y = dFdy(v_out.wPos);
-//
-//    vec3 normal = normalize(cross(vec_x, vec_y));
-
     vec3 toObj = normalize(v_out.wPos - camera_pos);
     vec3 toSky = refract(toObj, normal, ratio);
     vec3 texture = texture(u_tex, toSky).rgb;
 
     o_frag_color = vec4(texture, 1.0);
-    //  o_frag_color = vec4(0.5, 0.5, 0.5, 1.0);
 }

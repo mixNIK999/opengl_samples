@@ -300,6 +300,7 @@ int main(int, char **)
       shader_t model_texture_shader("model.vs", "model.fs");
       shader_t model_sky_reflection_shader("model.vs", "model_sky_reflection.fs");
       shader_t model_sky_refraction_shader("model.vs", "model_sky_refraction.fs");
+      shader_t model_sky_fresnel_shader("model.vs", "model_sky_fresnel.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -326,10 +327,12 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static int mode = 2;
-         ImGui::SliderInt("mode", &mode, 0, 2);
+         static int mode = 3;
+         ImGui::SliderInt("mode", &mode, 0, 3);
          static float refraction_ratio = 1.00 / 1.52;
          ImGui::SliderFloat("refraction ratio", &refraction_ratio, 0, 2);
+         static float F0 = 0.02;
+         ImGui::SliderFloat("F0", &F0, 0, 1);
 //         static float rotation_x;
 //         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
 //         static float rotation_y;
@@ -397,7 +400,7 @@ int main(int, char **)
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } else {
+            } if (mode == 2) {
                model_sky_refraction_shader.use();
                model_sky_refraction_shader.set_uniform("model", glm::value_ptr(model));
                model_sky_refraction_shader.set_uniform("view", glm::value_ptr(view));
@@ -405,6 +408,18 @@ int main(int, char **)
                model_sky_refraction_shader.set_uniform("u_tex", int(0));
                model_sky_refraction_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
                model_sky_refraction_shader.set_uniform<float>("ratio", refraction_ratio);
+
+               glActiveTexture(GL_TEXTURE0);
+               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            } else {
+               model_sky_fresnel_shader.use();
+               model_sky_fresnel_shader.set_uniform("model", glm::value_ptr(model));
+               model_sky_fresnel_shader.set_uniform("view", glm::value_ptr(view));
+               model_sky_fresnel_shader.set_uniform("projection", glm::value_ptr(projection));
+               model_sky_fresnel_shader.set_uniform("u_tex", int(0));
+               model_sky_fresnel_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
+               model_sky_fresnel_shader.set_uniform<float>("ratio", refraction_ratio);
+               model_sky_fresnel_shader.set_uniform<float>("F0", F0);
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
