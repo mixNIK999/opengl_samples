@@ -25,7 +25,7 @@ void main()
     vec3 refr = refract(toObj, normal, ratio);
 
     vec3 vec_F0 = vec3(F0);
-    vec3 F = vec_F0 + (1 - vec_F0) * pow(1 - dot(toObj, normal), 5);
+    vec3 F = clamp(vec_F0 + (1 - vec_F0) * pow(1 - dot(toObj, normal), 5), 0, 1);
 
     vec3 refl_texture = texture(u_tex, refl).rgb;
     vec3 refr_texture = texture(u_tex, refr).rgb;
