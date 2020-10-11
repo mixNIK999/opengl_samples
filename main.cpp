@@ -299,6 +299,7 @@ int main(int, char **)
       shader_t skybox_shader("simple-shader.vs", "simple-shader.fs");
       shader_t model_texture_shader("model.vs", "model.fs");
       shader_t model_sky_reflection_shader("model.vs", "model_sky_reflection.fs");
+      shader_t model_sky_refraction_shader("model.vs", "model_sky_refraction.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -325,9 +326,10 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static int mode = 1;
-         ImGui::SliderInt("rotation x", &mode, 0, 1);
-
+         static int mode = 2;
+         ImGui::SliderInt("mode", &mode, 0, 2);
+         static float refraction_ratio = 1.00 / 1.52;
+         ImGui::SliderFloat("refraction ratio", &refraction_ratio, 0, 2);
 //         static float rotation_x;
 //         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
 //         static float rotation_y;
@@ -342,6 +344,9 @@ int main(int, char **)
          auto view = glm::lookAt<float>(glm::vec3(0, 0, ui::zoom), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
                  * glm::rotate(ui::angle_x, glm::vec3(1, 0, 0))
                  * glm::rotate(ui::angle_y, glm::vec3(0, 1, 0));
+
+         auto camera_pos = glm::vec3(inverse(view)[3]);
+//               std::cout << glm::to_string(camera_pos) << "\n";
 
          auto projection = glm::perspective<float>(glm::radians(90.0), 1.0 * display_w / display_h, 0.01, 100);
          // Render sky
@@ -381,10 +386,7 @@ int main(int, char **)
                glBindTexture(GL_TEXTURE_2D, texture);
                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            } else {
-
-               auto camera_pos = glm::vec3(inverse(view)[3]);
-//               std::cout << glm::to_string(camera_pos) << "\n";
+            } if (mode == 1) {
 
                model_sky_reflection_shader.use();
                model_sky_reflection_shader.set_uniform("model", glm::value_ptr(model));
@@ -392,6 +394,17 @@ int main(int, char **)
                model_sky_reflection_shader.set_uniform("projection", glm::value_ptr(projection));
                model_sky_reflection_shader.set_uniform("u_tex", int(0));
                model_sky_reflection_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
+
+               glActiveTexture(GL_TEXTURE0);
+               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            } else {
+               model_sky_refraction_shader.use();
+               model_sky_refraction_shader.set_uniform("model", glm::value_ptr(model));
+               model_sky_refraction_shader.set_uniform("view", glm::value_ptr(view));
+               model_sky_refraction_shader.set_uniform("projection", glm::value_ptr(projection));
+               model_sky_refraction_shader.set_uniform("u_tex", int(0));
+               model_sky_refraction_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
+               model_sky_refraction_shader.set_uniform<float>("ratio", refraction_ratio);
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
