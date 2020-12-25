@@ -327,7 +327,7 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static int mode = 3;
+         static int mode = 0;
          ImGui::SliderInt("mode", &mode, 0, 3);
          static float refraction_ratio = 1.00 / 1.52;
          ImGui::SliderFloat("refraction ratio", &refraction_ratio, 0, 2);
@@ -389,7 +389,7 @@ int main(int, char **)
                glBindTexture(GL_TEXTURE_2D, texture);
                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            } if (mode == 1) {
+            } else if (mode == 1) {
 
                model_sky_reflection_shader.use();
                model_sky_reflection_shader.set_uniform("model", glm::value_ptr(model));
@@ -400,7 +400,7 @@ int main(int, char **)
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } if (mode == 2) {
+            } else if (mode == 2) {
                model_sky_refraction_shader.use();
                model_sky_refraction_shader.set_uniform("model", glm::value_ptr(model));
                model_sky_refraction_shader.set_uniform("view", glm::value_ptr(view));
