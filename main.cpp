@@ -185,11 +185,11 @@ unsigned int loadCubemap(std::vector<std::string> faces)
    return textureID;
 }
 
-void load_image(GLuint & texture)
+void load_image(GLuint & texture, const std::string& filename)
 {
    int width, height, channels;
    stbi_set_flip_vertically_on_load(true);
-   unsigned char *image = stbi_load("rocket_base_color.png",
+   unsigned char *image = stbi_load(filename.c_str(),
                                     &width,
                                     &height,
                                     &channels,
@@ -289,8 +289,9 @@ int main(int, char **)
 
       unsigned int cubemapTexture = loadCubemap(faces);
       GLuint texture;
-      load_image(texture);
-      auto my_object = create_model("rocket.obj");
+//      load_image(texture, "wellington-1m-dem.png");
+      load_image(texture, "Stadium2-256x256.png");
+      auto my_object = create_model("torus.obj");
 
       GLuint sky_vbo, sky_vao;
       create_sky_cube(sky_vbo, sky_vao);
@@ -298,6 +299,7 @@ int main(int, char **)
       // init shader
       shader_t skybox_shader("simple-shader.vs", "simple-shader.fs");
       shader_t model_texture_shader("model.vs", "model.fs");
+      shader_t model_heightmap_shader("heightmap.vs", "heightmap.fs");
       shader_t model_sky_reflection_shader("model.vs", "model_sky_reflection.fs");
       shader_t model_sky_refraction_shader("model.vs", "model_sky_refraction.fs");
       shader_t model_sky_fresnel_shader("model.vs", "model_sky_fresnel.fs");
@@ -327,12 +329,18 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static int mode = 0;
-         ImGui::SliderInt("mode", &mode, 0, 3);
+         static int mode = 4;
+         ImGui::SliderInt("mode", &mode, 0, 4);
          static float refraction_ratio = 1.00 / 1.52;
          ImGui::SliderFloat("refraction ratio", &refraction_ratio, 0, 2);
          static float F0 = 0.02;
          ImGui::SliderFloat("F0", &F0, 0, 1);
+
+         static float model_scale = 0.02;
+         ImGui::SliderFloat("model scale ", &model_scale, 0, 1);
+
+         static float height_scale = 100;
+         ImGui::SliderFloat("height scale ", &height_scale, 1, 1000);
 //         static float rotation_x;
 //         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
 //         static float rotation_y;
@@ -374,7 +382,7 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) * glm::scale(glm::vec3(0.001, 0.001, 0.001)) * glm::translate(glm::vec3(0, -100, 0));
+            auto model = glm::mat4(1) * glm::scale(glm::vec3(model_scale, model_scale, model_scale)) * glm::translate(glm::vec3(0, 0, 0));
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
@@ -411,7 +419,7 @@ int main(int, char **)
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } else {
+            } else if (mode == 3) {
                model_sky_fresnel_shader.use();
                model_sky_fresnel_shader.set_uniform("model", glm::value_ptr(model));
                model_sky_fresnel_shader.set_uniform("view", glm::value_ptr(view));
@@ -423,6 +431,19 @@ int main(int, char **)
 
                glActiveTexture(GL_TEXTURE0);
                glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            } else {
+               model_heightmap_shader.use();
+               model_heightmap_shader.set_uniform("model", glm::value_ptr(model));
+               model_heightmap_shader.set_uniform("view", glm::value_ptr(view));
+               model_heightmap_shader.set_uniform("projection", glm::value_ptr(projection));
+               model_heightmap_shader.set_uniform("u_tex", int(0));
+               model_heightmap_shader.set_uniform("u_heightmap", int(0));
+               model_heightmap_shader.set_uniform("u_height_scale", height_scale);
+
+               glActiveTexture(GL_TEXTURE0);
+               glBindTexture(GL_TEXTURE_2D, texture);
+               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
             my_object->draw();
             glDisable(GL_DEPTH_TEST);

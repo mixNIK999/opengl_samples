@@ -5,3 +5,4 @@ build
 /.idea/
 imgui.ini
 /cmake-build-debug-visual-studio/
+/build_debug/
