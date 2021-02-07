@@ -42,17 +42,6 @@ static void glfw_error_callback(int error, const char *description)
    throw std::runtime_error(fmt::format("Glfw Error {}: {}\n", error, description));
 }
 
-//glm::vec3 from_torus(glm::vec3 torus_coord, double c) {
-//
-//   double d = glm::cosh(torus_coord[1]) - glm::cos(torus_coord[0]);
-//
-//   double x = c * glm::sinh(torus_coord[1]) * glm::cos(torus_coord[2]) / d;
-//   double y = c * glm::sinh(torus_coord[1]) * glm::sin(torus_coord[2]) / d;
-//   double z = c * glm::sin(torus_coord[0]) / d;
-//
-//   return {x, y, z};
-//}
-
 void create_sky_cube(GLuint &vbo, GLuint &vao)
 {
    // create the triangle
@@ -109,62 +98,6 @@ void create_sky_cube(GLuint &vbo, GLuint &vao)
    glEnableVertexAttribArray(0);
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)(0));
 }
-//
-//struct render_target_t
-//{
-//   render_target_t(int res_x, int res_y);
-//   ~render_target_t();
-//
-//   GLuint fbo_;
-//   GLuint color_, depth_;
-//   int width_, height_;
-//};
-//
-//render_target_t::render_target_t(int res_x, int res_y)
-//{
-//   width_ = res_x;
-//   height_ = res_y;
-//
-//   glGenTextures(1, &color_);
-//   glBindTexture(GL_TEXTURE_2D, color_);
-//   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, res_x, res_y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-//
-//   glGenTextures(1, &depth_);
-//   glBindTexture(GL_TEXTURE_2D, depth_);
-//   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, res_x, res_y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
-//
-//   glBindTexture(GL_TEXTURE_2D, 0);
-//
-//   glGenFramebuffers(1, &fbo_);
-//
-//   glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
-//
-//   glFramebufferTexture2D(GL_FRAMEBUFFER,
-//      GL_COLOR_ATTACHMENT0,
-//      GL_TEXTURE_2D,
-//      color_,
-//      0);
-//
-//   glFramebufferTexture2D(GL_FRAMEBUFFER,
-//      GL_DEPTH_ATTACHMENT,
-//      GL_TEXTURE_2D,
-//      depth_,
-//      0);
-//
-//   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-//   if (status != GL_FRAMEBUFFER_COMPLETE)
-//      throw std::runtime_error("Framebuffer incomplete");
-//
-//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//
-//}
-//
-//render_target_t::~render_target_t()
-//{
-//   glDeleteFramebuffers(1, &fbo_);
-//   glDeleteTextures(1, &depth_);
-//   glDeleteTextures(1, &color_);
-//}
 
 unsigned int loadCubemap(std::vector<std::string> faces)
 {
@@ -224,6 +157,12 @@ namespace ui {
     float angle_y = 0;
     float zoom = 0.8;
 
+    double alpha = 0;
+    double beta = 0;
+
+    bool is_alpha = true;
+    bool is_plus = true;
+
     glm::vec2 prev_pos;
 
     void update_angles(glm::vec2 d) {
@@ -239,6 +178,28 @@ namespace ui {
        }
     }
 
+    void arrow_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+       if (key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          alpha += 0.03;
+          is_alpha = true;
+          is_plus = true;
+       }
+       if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          alpha -= 0.03;
+          is_alpha = true;
+          is_plus = false;
+       }
+       if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          beta -= 0.05;
+          is_alpha = false;
+          is_plus = false;
+       }
+       if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          beta += 0.05;
+          is_alpha = false;
+          is_plus = true;
+       }
+    }
 
     void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos) {
 
@@ -287,6 +248,7 @@ int main(int, char **)
       glfwSetMouseButtonCallback(window, ui::mouse_button_callback);
       glfwSetCursorPosCallback(window, ui::mouse_cursor_callback);
       glfwSetScrollCallback(window, ui::mouse_scroll_callback);
+      glfwSetKeyCallback(window, ui::arrow_key_callback);
 
       //load textures
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -322,10 +284,6 @@ int main(int, char **)
       // init shader
       shader_t skybox_shader("simple-shader.vs", "simple-shader.fs");
       shader_t model_texture_shader("model.vs", "model.fs");
-      shader_t model_heightmap_shader("heightmap.vs", "heightmap.fs");
-      shader_t model_sky_reflection_shader("model.vs", "model_sky_reflection.fs");
-      shader_t model_sky_refraction_shader("model.vs", "model_sky_refraction.fs");
-      shader_t model_sky_fresnel_shader("model.vs", "model_sky_fresnel.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -335,17 +293,6 @@ int main(int, char **)
       ImGui_ImplOpenGL3_Init(glsl_version);
       ImGui::StyleColorsDark();
 
-      //frame buffer
-      unsigned int fbo;
-      glGenFramebuffers(1, &fbo);
-      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-      //render buffer for fbo
-      unsigned int rbo;
-      glGenRenderbuffers(1, &rbo);
-      glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-      glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, 1280, 720);
-      glBindRenderbuffer(GL_RENDERBUFFER, 0);
-      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
       if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
          std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -360,7 +307,6 @@ int main(int, char **)
          int display_w, display_h;
          glfwGetFramebufferSize(window, &display_w, &display_h);
 
-
          // Gui start new frame
          ImGui_ImplOpenGL3_NewFrame();
          ImGui_ImplGlfw_NewFrame();
@@ -368,39 +314,44 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Triangle Position/Color");
-         static int mode = 4;
-         ImGui::SliderInt("mode", &mode, 0, 4);
-         static float refraction_ratio = 1.00 / 1.52;
-         ImGui::SliderFloat("refraction ratio", &refraction_ratio, 0, 2);
-         static float F0 = 0.02;
-         ImGui::SliderFloat("F0", &F0, 0, 1);
 
          static float model_scale = 0.2;
          ImGui::SliderFloat("model scale ", &model_scale, 0, 1);
 
-         static float height_scale = 100;
-         ImGui::SliderFloat("height scale ", &height_scale, 1, 1000);
+         static bool free_camera = false;
+         ImGui::Checkbox("free camera ", &free_camera);
 
-         static float alpha = 0;
-         ImGui::SliderFloat("alpha ", &alpha, 0, 2 * glm::pi<float>());
-
-         static float beta = 0;
-         ImGui::SliderFloat("beta ", &beta, 0, 2 * glm::pi<float>());
-//         static float rotation_x;
-//         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
-//         static float rotation_y;
-//         ImGui::SliderFloat("rotation y", &rotation_y, 0, 2 * glm::pi<float>());
-//         static float rotation_z;
-//         ImGui::SliderFloat("rotation z", &rotation_z, 0, 2 * glm::pi<float>());
          ImGui::End();
 
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, ui::zoom), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
+         auto car_center = logic_torus->get_point(ui::alpha, ui::beta);
+
+         auto norm = logic_torus->get_norm(ui::alpha, ui::beta);
+         auto car_norm = glm::vec3(0, 1, 0);
+//         auto new_z = glm::normalize(glm::cross(norm, car_norm));
+         auto nex_point = logic_torus->get_point(ui::alpha + ui::is_alpha * ((ui::is_plus)? 1 : -1) * 0.1, ui::beta + (!ui::is_alpha) * ((ui::is_plus)? 1 : -1) * 0.1);
+         auto new_z = glm::normalize(nex_point - logic_torus->get_point(ui::alpha, ui::beta));
+         auto new_x = glm::normalize(glm::cross(norm, new_z));
+
+         auto transform = glm::mat4(glm::mat3(new_x, norm, new_z));
+
+         auto torus_model = glm::scale(glm::vec3(model_scale, model_scale, model_scale));
+
+         auto car_model = torus_model * glm::translate(car_center) * glm::scale(glm::vec3(0.001, 0.001, 0.001)) * transform;
+
+         auto world_car_center = glm::vec3(car_model * glm::vec4(car_center, 1));
+
+         glm::mat4 view;
+
+         if (!free_camera) {
+            view = glm::lookAt<float>(world_car_center + norm * glm::vec3(0.1, 0.1, 0.1), new_z - norm, norm);
+         } else {
+            view = glm::lookAt<float>(glm::vec3(0, 0, ui::zoom), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
                  * glm::rotate(ui::angle_x, glm::vec3(1, 0, 0))
                  * glm::rotate(ui::angle_y, glm::vec3(0, 1, 0));
-
+         }
          auto camera_pos = glm::vec3(inverse(view)[3]);
 //               std::cout << glm::to_string(camera_pos) << "\n";
 
@@ -427,22 +378,11 @@ int main(int, char **)
 
          // Render object
          {
-            auto torus_model = glm::scale(glm::vec3(model_scale, model_scale, model_scale));
-
-            auto car_model = torus_model * glm::translate(logic_torus->get_point(alpha, beta)) * glm::scale(glm::vec3(0.001, 0.001, 0.001));
 
 //            std::cout << logic_torus->get_point(alpha, beta).x << "\n";
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
-
-//            model_heightmap_shader.use();
-//            model_heightmap_shader.set_uniform("model", glm::value_ptr(torus_model));
-//            model_heightmap_shader.set_uniform("view", glm::value_ptr(view));
-//            model_heightmap_shader.set_uniform("projection", glm::value_ptr(projection));
-//            model_heightmap_shader.set_uniform("u_tex", int(0));
-//            model_heightmap_shader.set_uniform("u_heightmap", int(0));
-//            model_heightmap_shader.set_uniform("u_height_scale", height_scale);
 
             model_texture_shader.use();
             model_texture_shader.set_uniform("model", glm::value_ptr(torus_model));
@@ -454,22 +394,6 @@ int main(int, char **)
             glBindTexture(GL_TEXTURE_2D, height_map_texture);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-
-//            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-//            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-//            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // буфер трафарета не используется
-//            glEnable(GL_DEPTH_TEST);
-//
-//            torus->draw();
-//
-//            float deps = 0;
-//            glReadPixels(display_w/2, display_h/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &deps);
-//
-//            std::cout << deps << "\n";
-//            glBindFramebuffer(GL_FRAMEBUFFER, 0); // возвращаем буфер кадра по умолчанию
-//            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-//            glClear(GL_COLOR_BUFFER_BIT);
 
 //       draw objects
 
