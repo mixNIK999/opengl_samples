@@ -33,11 +33,25 @@
 #include "opengl_shader.h"
 
 #include "obj_model.h"
+#include "RawImage.h"
+#include "TorusWithHeightMap.h"
+#include "TorusModel.h"
 
 static void glfw_error_callback(int error, const char *description)
 {
    throw std::runtime_error(fmt::format("Glfw Error {}: {}\n", error, description));
 }
+
+//glm::vec3 from_torus(glm::vec3 torus_coord, double c) {
+//
+//   double d = glm::cosh(torus_coord[1]) - glm::cos(torus_coord[0]);
+//
+//   double x = c * glm::sinh(torus_coord[1]) * glm::cos(torus_coord[2]) / d;
+//   double y = c * glm::sinh(torus_coord[1]) * glm::sin(torus_coord[2]) / d;
+//   double z = c * glm::sin(torus_coord[0]) / d;
+//
+//   return {x, y, z};
+//}
 
 void create_sky_cube(GLuint &vbo, GLuint &vao)
 {
@@ -208,7 +222,7 @@ void load_image(GLuint & texture, const std::string& filename)
 namespace ui {
     float angle_x = 0;
     float angle_y = 0;
-    float zoom = 0.2;
+    float zoom = 0.8;
 
     glm::vec2 prev_pos;
 
@@ -288,10 +302,19 @@ int main(int, char **)
       };
 
       unsigned int cubemapTexture = loadCubemap(faces);
-      GLuint texture;
-//      load_image(texture, "wellington-1m-dem.png");
-      load_image(texture, "Stadium2-256x256.png");
-      auto my_object = create_model("torus.obj");
+      GLuint height_map_texture;
+//      load_image(height_map_texture, "wellington-1m-dem.png");
+      load_image(height_map_texture, "Stadium2-256x256.png");
+      auto hm = RawImage::load_from_file("Stadium2-256x256.png");
+
+      GLuint texture_car;
+      load_image(texture_car, "Car_Orange_D.jpg");
+
+//      auto torus = create_model("torus.obj");
+      auto logic_torus = std::make_shared<TorusWithHeightMap>(3, 1, hm);
+//      auto logic_torus = std::make_shared<Torus>(3, 1);
+      auto torus = TorusModel(100, 50, logic_torus);
+      auto car = create_model("Toy_Car.obj");
 
       GLuint sky_vbo, sky_vao;
       create_sky_cube(sky_vbo, sky_vao);
@@ -312,6 +335,22 @@ int main(int, char **)
       ImGui_ImplOpenGL3_Init(glsl_version);
       ImGui::StyleColorsDark();
 
+      //frame buffer
+      unsigned int fbo;
+      glGenFramebuffers(1, &fbo);
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      //render buffer for fbo
+      unsigned int rbo;
+      glGenRenderbuffers(1, &rbo);
+      glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+      glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, 1280, 720);
+      glBindRenderbuffer(GL_RENDERBUFFER, 0);
+      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+      if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
       while (!glfwWindowShouldClose(window))
       {
@@ -336,11 +375,17 @@ int main(int, char **)
          static float F0 = 0.02;
          ImGui::SliderFloat("F0", &F0, 0, 1);
 
-         static float model_scale = 0.02;
+         static float model_scale = 0.2;
          ImGui::SliderFloat("model scale ", &model_scale, 0, 1);
 
          static float height_scale = 100;
          ImGui::SliderFloat("height scale ", &height_scale, 1, 1000);
+
+         static float alpha = 0;
+         ImGui::SliderFloat("alpha ", &alpha, 0, 2 * glm::pi<float>());
+
+         static float beta = 0;
+         ImGui::SliderFloat("beta ", &beta, 0, 2 * glm::pi<float>());
 //         static float rotation_x;
 //         ImGui::SliderFloat("rotation x", &rotation_x, 0, 2 * glm::pi<float>());
 //         static float rotation_y;
@@ -382,70 +427,67 @@ int main(int, char **)
 
          // Render object
          {
-            auto model = glm::mat4(1) * glm::scale(glm::vec3(model_scale, model_scale, model_scale)) * glm::translate(glm::vec3(0, 0, 0));
+            auto torus_model = glm::scale(glm::vec3(model_scale, model_scale, model_scale));
+
+            auto car_model = torus_model * glm::translate(logic_torus->get_point(alpha, beta)) * glm::scale(glm::vec3(0.001, 0.001, 0.001));
+
+//            std::cout << logic_torus->get_point(alpha, beta).x << "\n";
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
-            if (mode == 0) {
-               model_texture_shader.use();
-               model_texture_shader.set_uniform("model", glm::value_ptr(model));
-               model_texture_shader.set_uniform("view", glm::value_ptr(view));
-               model_texture_shader.set_uniform("projection", glm::value_ptr(projection));
-               model_texture_shader.set_uniform("u_tex", int(0));
 
-               glActiveTexture(GL_TEXTURE0);
-               glBindTexture(GL_TEXTURE_2D, texture);
-               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            } else if (mode == 1) {
+//            model_heightmap_shader.use();
+//            model_heightmap_shader.set_uniform("model", glm::value_ptr(torus_model));
+//            model_heightmap_shader.set_uniform("view", glm::value_ptr(view));
+//            model_heightmap_shader.set_uniform("projection", glm::value_ptr(projection));
+//            model_heightmap_shader.set_uniform("u_tex", int(0));
+//            model_heightmap_shader.set_uniform("u_heightmap", int(0));
+//            model_heightmap_shader.set_uniform("u_height_scale", height_scale);
 
-               model_sky_reflection_shader.use();
-               model_sky_reflection_shader.set_uniform("model", glm::value_ptr(model));
-               model_sky_reflection_shader.set_uniform("view", glm::value_ptr(view));
-               model_sky_reflection_shader.set_uniform("projection", glm::value_ptr(projection));
-               model_sky_reflection_shader.set_uniform("u_tex", int(0));
-               model_sky_reflection_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
+            model_texture_shader.use();
+            model_texture_shader.set_uniform("model", glm::value_ptr(torus_model));
+            model_texture_shader.set_uniform("view", glm::value_ptr(view));
+            model_texture_shader.set_uniform("projection", glm::value_ptr(projection));
+            model_texture_shader.set_uniform("u_tex", int(0));
 
-               glActiveTexture(GL_TEXTURE0);
-               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } else if (mode == 2) {
-               model_sky_refraction_shader.use();
-               model_sky_refraction_shader.set_uniform("model", glm::value_ptr(model));
-               model_sky_refraction_shader.set_uniform("view", glm::value_ptr(view));
-               model_sky_refraction_shader.set_uniform("projection", glm::value_ptr(projection));
-               model_sky_refraction_shader.set_uniform("u_tex", int(0));
-               model_sky_refraction_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
-               model_sky_refraction_shader.set_uniform<float>("ratio", refraction_ratio);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, height_map_texture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-               glActiveTexture(GL_TEXTURE0);
-               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } else if (mode == 3) {
-               model_sky_fresnel_shader.use();
-               model_sky_fresnel_shader.set_uniform("model", glm::value_ptr(model));
-               model_sky_fresnel_shader.set_uniform("view", glm::value_ptr(view));
-               model_sky_fresnel_shader.set_uniform("projection", glm::value_ptr(projection));
-               model_sky_fresnel_shader.set_uniform("u_tex", int(0));
-               model_sky_fresnel_shader.set_uniform<float>("camera_pos", camera_pos.x, camera_pos.y, camera_pos.z);
-               model_sky_fresnel_shader.set_uniform<float>("ratio", refraction_ratio);
-               model_sky_fresnel_shader.set_uniform<float>("F0", F0);
 
-               glActiveTexture(GL_TEXTURE0);
-               glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-            } else {
-               model_heightmap_shader.use();
-               model_heightmap_shader.set_uniform("model", glm::value_ptr(model));
-               model_heightmap_shader.set_uniform("view", glm::value_ptr(view));
-               model_heightmap_shader.set_uniform("projection", glm::value_ptr(projection));
-               model_heightmap_shader.set_uniform("u_tex", int(0));
-               model_heightmap_shader.set_uniform("u_heightmap", int(0));
-               model_heightmap_shader.set_uniform("u_height_scale", height_scale);
+//            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+//            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+//            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // буфер трафарета не используется
+//            glEnable(GL_DEPTH_TEST);
+//
+//            torus->draw();
+//
+//            float deps = 0;
+//            glReadPixels(display_w/2, display_h/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &deps);
+//
+//            std::cout << deps << "\n";
+//            glBindFramebuffer(GL_FRAMEBUFFER, 0); // возвращаем буфер кадра по умолчанию
+//            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//            glClear(GL_COLOR_BUFFER_BIT);
 
-               glActiveTexture(GL_TEXTURE0);
-               glBindTexture(GL_TEXTURE_2D, texture);
-               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-               glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            }
-            my_object->draw();
+//       draw objects
+
+            torus.draw();
+
+            model_texture_shader.use();
+            model_texture_shader.set_uniform("model", glm::value_ptr(car_model));
+            model_texture_shader.set_uniform("view", glm::value_ptr(view));
+            model_texture_shader.set_uniform("projection", glm::value_ptr(projection));
+            model_texture_shader.set_uniform("u_tex", int(0));
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture_car);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            car->draw();
+
             glDisable(GL_DEPTH_TEST);
          }
 

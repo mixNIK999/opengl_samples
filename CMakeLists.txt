@@ -30,7 +30,7 @@ add_executable( opengl-imgui-sample
   assets/simple-shader.fs
   assets/model.vs
   assets/model.fs
-  )
+        TorusModel.cpp TorusModel.h Torus.cpp Torus.h TorusWithHeightMap.cpp TorusWithHeightMap.h RawImage.cpp RawImage.h)
 
 add_custom_command(TARGET opengl-imgui-sample
     POST_BUILD
